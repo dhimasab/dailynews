@@ -67,7 +67,7 @@ async def scheduled_message():
 async def main():
     print("Menyiapkan scheduler...", flush=True)
     scheduler = AsyncIOScheduler(timezone=pytz.timezone("Asia/Jakarta"))
-    scheduler.add_job(scheduled_message, "cron", hour=2, minute=35)  # 14:30 WIB
+    scheduler.add_job(scheduled_message, "cron", hour=2, minute=40)  # 14:30 WIB
     scheduler.start()
     print("Scheduler sudah aktif, menunggu event/pesan masuk...", flush=True)
 
