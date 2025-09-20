@@ -58,7 +58,7 @@ async def scheduled_message():
 # Main loop
 async def main():
     scheduler = AsyncIOScheduler(timezone=pytz.timezone("Asia/Jakarta"))
-    scheduler.add_job(scheduled_message, "cron", hour=2, minute=21)  # 14:30 WIB
+    scheduler.add_job(scheduled_message, "cron", hour=2, minute=25)  # 14:30 WIB
     scheduler.start()
 
     await client.run_until_disconnected()
