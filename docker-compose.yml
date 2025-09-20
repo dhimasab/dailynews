@@ -9,3 +9,7 @@ services:
       - API_ID=${API_ID}
       - API_HASH=${API_HASH}
       - SESSION=${SESSION}
+      - TARGET_USERNAME=${TARGET_USERNAME}
+      - TARGET_ID=${TARGET_ID}
+      - TARGET_ID=${TARGET_ID}
+      - WEBHOOK_URL=${WEBHOOK_URL}
