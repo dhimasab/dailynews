@@ -1,0 +1,11 @@
+version: "3.8"
+
+services:
+  telethon-bot:
+    build: .
+    container_name: telethon-bot
+    restart: always
+    environment:
+      - API_ID=${API_ID}
+      - API_HASH=${API_HASH}
+      - SESSION=${SESSION}
