@@ -9,26 +9,44 @@ from datetime import datetime
 
 print("=== Bot Telethon starting up... ===", flush=True)
 
-# API dari env
-api_id = int(os.getenv("API_ID"))
-api_hash = os.getenv("API_HASH")
+# Helper ambil ENV (wajib ada)
+def get_env_str(name: str) -> str:
+    val = os.getenv(name)
+    if not val:
+        raise ValueError(f"ENV {name} wajib diisi")
+    return val
+
+def get_env_int(name: str) -> int:
+    val = os.getenv(name)
+    if not val:
+        raise ValueError(f"ENV {name} wajib diisi")
+    return int(val)
+
+# API dari ENV
+api_id = get_env_int("API_ID")
+api_hash = get_env_str("API_HASH")
 print(f"API_ID & API_HASH loaded dari ENV. API_ID={api_id}", flush=True)
 
 # Nama session file
 session_name = "session"
 session_file = session_name + ".session"
 
-# Ambil session dalam bentuk base64 dari ENV → decode → simpan jadi .session
-session_b64 = os.getenv("SESSION")
-if session_b64:
-    with open(session_file, "wb") as f:
-        f.write(base64.b64decode(session_b64))
-    print(f"Session berhasil ditulis ke {session_file}", flush=True)
+# Ambil session dari ENV → decode → simpan
+session_b64 = get_env_str("SESSION")
+with open(session_file, "wb") as f:
+    f.write(base64.b64decode(session_b64))
+print(f"Session berhasil ditulis ke {session_file}", flush=True)
 
-# Target (username & ID) dari env
-TARGET_USERNAME = os.getenv("TARGET_USERNAME")
-TARGET_ID = int(os.getenv("TARGET_ID"))
-WEBHOOK_URL = os.getenv("WEBHOOK_URL")
+# Target & webhook dari ENV
+TARGET_USERNAME = get_env_str("TARGET_USERNAME")
+TARGET_ID = get_env_int("TARGET_ID")
+WEBHOOK_URL = get_env_str("WEBHOOK_URL")
+
+# Scheduler config dari ENV
+SCHEDULE_HOUR = get_env_int("SCHEDULE_HOUR")
+SCHEDULE_MINUTE = get_env_int("SCHEDULE_MINUTE")
+RESPONSE_DELAY = get_env_int("RESPONSE_DELAY")  # detik
+QUESTION_TEXT = get_env_str("QUESTION_TEXT")
 
 # Init Telethon
 client = TelegramClient(session_name, api_id, api_hash)
@@ -38,10 +56,10 @@ last_question_id = None
 collector_task = None   # task async untuk kumpulin balasan
 
 async def collect_responses():
-    """Tunggu 60 detik, lalu ambil bubble terpanjang setelah pertanyaan terakhir"""
+    """Tunggu sesuai RESPONSE_DELAY, lalu ambil bubble terpanjang setelah pertanyaan terakhir"""
     global last_question_id, collector_task
-    print("[Collector] Mulai kumpulin balasan selama 60 detik...", flush=True)
-    await asyncio.sleep(60)
+    print(f"[Collector] Mulai kumpulin balasan selama {RESPONSE_DELAY} detik...", flush=True)
+    await asyncio.sleep(RESPONSE_DELAY)
 
     responses = await client.get_messages(TARGET_ID, min_id=last_question_id, limit=10)
     print(f"[Collector] Jumlah pesan ditemukan: {len(responses)}", flush=True)
@@ -77,19 +95,16 @@ async def handler(event):
 async def scheduled_message():
     global last_question_id
     target = await client.get_entity(TARGET_USERNAME)
-    sent = await client.send_message(
-        target,
-        "Berikan update news, project web3 dan hot topik CT hari. Batasi hasilnya maksimal 3400 karakter"
-    )
+    sent = await client.send_message(target, QUESTION_TEXT)
     last_question_id = sent.id
     print(f"[Scheduler] Pesan terjadwal dikirim (id={last_question_id}) @ {datetime.now()}", flush=True)
 
 # Main loop
 async def main():
     scheduler = AsyncIOScheduler(timezone=pytz.timezone("Asia/Jakarta"))
-    scheduler.add_job(scheduled_message, "cron", hour=15, minute=47)
+    scheduler.add_job(scheduled_message, "cron", hour=SCHEDULE_HOUR, minute=SCHEDULE_MINUTE)
     scheduler.start()
-    print("Scheduler sudah aktif, menunggu event/pesan masuk...", flush=True)
+    print(f"Scheduler sudah aktif @ {SCHEDULE_HOUR:02d}:{SCHEDULE_MINUTE:02d}, menunggu event/pesan masuk...", flush=True)
     await client.run_until_disconnected()
 
 with client:
