@@ -37,20 +37,32 @@ print(f"Target config loaded → USERNAME={TARGET_USERNAME}, ID={TARGET_ID}", fl
 # Init Telethon
 client = TelegramClient(session_name, api_id, api_hash)
 
-# Event listener
+# Simpan ID pertanyaan terakhir yang dikirim bot
+last_question_id = None
+
+# Event listener → tangkap balasan Elfa
 @client.on(events.NewMessage(from_users=TARGET_ID))
 async def handler(event):
+    global last_question_id
     print("Pesan diterima dari Elfa, tunggu 60 detik sebelum respon final...", flush=True)
     await asyncio.sleep(60)
 
-    # Ambil beberapa pesan terakhir biar ga cuma bubble CTA
-    messages = await client.get_messages(TARGET_ID, limit=3)
-    if messages:
-        # Pilih pesan dengan teks terpanjang
-        final_msg = max(messages, key=lambda m: len(m.text or ""))
-        final_text = final_msg.text
+    if last_question_id is None:
+        print("⚠️ last_question_id belum ada, skip handler.", flush=True)
+        return
 
-        print("Balasan final dari Elfa (dipilih pesan terpanjang):", final_text, flush=True)
+    # Ambil semua pesan dari Elfa setelah pertanyaan terakhir
+    responses = await client.get_messages(TARGET_ID, min_id=last_question_id, limit=10)
+    if not responses:
+        print("Tidak ada balasan dari Elfa setelah pertanyaan terakhir.", flush=True)
+        return
+
+    # Pilih bubble dengan teks terpanjang
+    longest_msg = max(responses, key=lambda m: len(m.text or ""), default=None)
+
+    if longest_msg and longest_msg.text:
+        final_text = longest_msg.text
+        print("Balasan final dari Elfa (bubble terpanjang):", final_text, flush=True)
 
         # Kirim ke webhook n8n
         payload = {"sender": "Elfa", "message": final_text}
@@ -59,21 +71,25 @@ async def handler(event):
             print("Webhook status:", res.status_code, flush=True)
         except Exception as e:
             print("Gagal kirim webhook:", e, flush=True)
+    else:
+        print("Tidak ada bubble teks valid dari Elfa.", flush=True)
 
 # Fungsi kirim pesan terjadwal
 async def scheduled_message():
+    global last_question_id
     target = await client.get_entity(TARGET_USERNAME)
-    await client.send_message(
+    sent = await client.send_message(
         target,
         "Berikan update news, project web3 dan hot topik CT hari. Batasi hasilnya maksimal 3400 karakter"
     )
-    print("Pesan terjadwal dikirim:", datetime.now(), flush=True)
+    last_question_id = sent.id  # simpan ID pertanyaan terakhir
+    print(f"Pesan terjadwal dikirim (id={last_question_id}):", datetime.now(), flush=True)
 
 # Main loop
 async def main():
     print("Menyiapkan scheduler...", flush=True)
     scheduler = AsyncIOScheduler(timezone=pytz.timezone("Asia/Jakarta"))
-    scheduler.add_job(scheduled_message, "cron", hour=14, minute=51)  # 14:30 WIB
+    scheduler.add_job(scheduled_message, "cron", hour=15, minute=13)  # 14:30 WIB
     scheduler.start()
     print("Scheduler sudah aktif, menunggu event/pesan masuk...", flush=True)
 
