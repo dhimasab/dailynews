@@ -44,17 +44,22 @@ last_question_id = None
 @client.on(events.NewMessage(from_users=TARGET_ID))
 async def handler(event):
     global last_question_id
-    print("Pesan diterima dari Elfa, tunggu 60 detik sebelum respon final...", flush=True)
-    await asyncio.sleep(60)
+    print(f"[Handler] Pesan baru masuk dari Elfa (id={event.id}).", flush=True)
 
     if last_question_id is None:
-        print("⚠️ last_question_id belum ada, skip handler.", flush=True)
+        print("⚠️ last_question_id masih None → skip handler.", flush=True)
         return
 
+    print("Menunggu 60 detik untuk kumpulkan semua bubble...", flush=True)
+    await asyncio.sleep(60)
+
     # Ambil semua pesan dari Elfa setelah pertanyaan terakhir
+    print(f"[Handler] Cek balasan setelah last_question_id={last_question_id}", flush=True)
     responses = await client.get_messages(TARGET_ID, min_id=last_question_id, limit=10)
+    print(f"[Handler] Jumlah pesan ditemukan: {len(responses)}", flush=True)
+
     if not responses:
-        print("Tidak ada balasan dari Elfa setelah pertanyaan terakhir.", flush=True)
+        print("❌ Tidak ada balasan dari Elfa setelah pertanyaan terakhir.", flush=True)
         return
 
     # Pilih bubble dengan teks terpanjang
@@ -62,17 +67,17 @@ async def handler(event):
 
     if longest_msg and longest_msg.text:
         final_text = longest_msg.text
-        print("Balasan final dari Elfa (bubble terpanjang):", final_text, flush=True)
+        print("✅ Balasan final dari Elfa (bubble terpanjang):", final_text[:120], "...", flush=True)
 
         # Kirim ke webhook n8n
         payload = {"sender": "Elfa", "message": final_text}
         try:
             res = requests.post(WEBHOOK_URL, json=payload)
-            print("Webhook status:", res.status_code, flush=True)
+            print(f"[Webhook] Status: {res.status_code}", flush=True)
         except Exception as e:
-            print("Gagal kirim webhook:", e, flush=True)
+            print("[Webhook] Gagal kirim:", e, flush=True)
     else:
-        print("Tidak ada bubble teks valid dari Elfa.", flush=True)
+        print("❌ Tidak ada bubble teks valid dari Elfa.", flush=True)
 
 # Fungsi kirim pesan terjadwal
 async def scheduled_message():
@@ -83,13 +88,13 @@ async def scheduled_message():
         "Berikan update news, project web3 dan hot topik CT hari. Batasi hasilnya maksimal 3400 karakter"
     )
     last_question_id = sent.id  # simpan ID pertanyaan terakhir
-    print(f"Pesan terjadwal dikirim (id={last_question_id}):", datetime.now(), flush=True)
+    print(f"[Scheduler] Pesan terjadwal dikirim (id={last_question_id}) @ {datetime.now()}", flush=True)
 
 # Main loop
 async def main():
     print("Menyiapkan scheduler...", flush=True)
     scheduler = AsyncIOScheduler(timezone=pytz.timezone("Asia/Jakarta"))
-    scheduler.add_job(scheduled_message, "cron", hour=15, minute=13)  # 14:30 WIB
+    scheduler.add_job(scheduled_message, "cron", hour=15, minute=25)  # 14:30 WIB
     scheduler.start()
     print("Scheduler sudah aktif, menunggu event/pesan masuk...", flush=True)
 
