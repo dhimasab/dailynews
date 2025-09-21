@@ -43,11 +43,14 @@ async def handler(event):
     print("Pesan diterima dari Elfa, tunggu 60 detik sebelum respon final...", flush=True)
     await asyncio.sleep(60)
 
-    # Ambil ulang pesan terbaru biar bukan "Thinking..."
-    messages = await client.get_messages(TARGET_ID, limit=1)
+    # Ambil beberapa pesan terakhir biar ga cuma bubble CTA
+    messages = await client.get_messages(TARGET_ID, limit=3)
     if messages:
-        final_text = messages[0].text
-        print("Balasan final dari Elfa:", final_text, flush=True)
+        # Pilih pesan dengan teks terpanjang
+        final_msg = max(messages, key=lambda m: len(m.text or ""))
+        final_text = final_msg.text
+
+        print("Balasan final dari Elfa (dipilih pesan terpanjang):", final_text, flush=True)
 
         # Kirim ke webhook n8n
         payload = {"sender": "Elfa", "message": final_text}
@@ -60,14 +63,17 @@ async def handler(event):
 # Fungsi kirim pesan terjadwal
 async def scheduled_message():
     target = await client.get_entity(TARGET_USERNAME)
-    await client.send_message(target, "Berikan update news, project web3 dan hot topik CT hari. Batasi hasilnya maksimal 3400 karakter")
+    await client.send_message(
+        target,
+        "Berikan update news, project web3 dan hot topik CT hari. Batasi hasilnya maksimal 3400 karakter"
+    )
     print("Pesan terjadwal dikirim:", datetime.now(), flush=True)
 
 # Main loop
 async def main():
     print("Menyiapkan scheduler...", flush=True)
     scheduler = AsyncIOScheduler(timezone=pytz.timezone("Asia/Jakarta"))
-    scheduler.add_job(scheduled_message, "cron", hour=14, minute=14)  # 14:30 WIB
+    scheduler.add_job(scheduled_message, "cron", hour=14, minute=24)  # 14:30 WIB
     scheduler.start()
     print("Scheduler sudah aktif, menunggu event/pesan masuk...", flush=True)
 
